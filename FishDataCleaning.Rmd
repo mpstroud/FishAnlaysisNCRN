@@ -1,0 +1,151 @@
+---
+title: "FishCommunityAnalysis_NPS_2023"
+author: "MPeipoch"
+date: "2023-12-03"
+output: pdf_document
+---
+
+Necessary packages for the script
+```{r, echo=FALSE}
+# required packages
+req_packs <- c("ggplot2", "dplyr", "vegan", "tidyr","stringr","openxlsx","sf","raster","trend","lubridate")
+
+
+########### if installed, then install and load ###################################
+new_packs <- req_packs[!(req_packs %in% installed.packages()[,"Package"])]
+if (length(new_packs) > 0) {
+  install.packages(new_packs,dependencies=T)
+}
+
+lapply(req_packs, function(pkg) {
+  if (!require(pkg, character.only = TRUE)) {
+    stop(paste("Package", pkg, "could not be loaded. Fix it!"))
+  }
+  library(pkg, character.only = TRUE)
+})
+
+
+
+
+```
+
+ORGANIZING FISH DATA FOR COMMUNITY ANALYSIS:
+This section generates two new datasets, one containing general diversity metrics per site and year and another one corresponding to typical species abundance matrix
+```{r}
+
+###Import data file 
+
+setwd("G:/My Drive/NPS_FishDataAnalysis/")
+wdata = read.csv("20231128_wqp_wqx_bss_wq_npsncrn.csv")
+  
+
+  
+###Create a vector with the unique sites in USNPS NCRN Biological stream survey
+
+sites = unique(wdata$MonitoringLocationIdentifier)
+
+
+
+###Create lists of length=sites in which all available fish data and diversity metrics per site is stored in a unique format and file
+
+NCRNFishPopData = list() # Results output--RawData
+NCRNFishRichness = list() # Results output--Richness
+
+
+for (site in sites) {
+  
+  # Subset data for each site
+  temp_data = wdata %>% 
+    dplyr::filter(MonitoringLocationIdentifier == site)
+
+    
+        temp_data_subset = temp_data %>% #select variable per site and method 
+          dplyr::filter(CharacteristicName %in% c("fish - count of individuals captured by species","fish specimens captured electrofishing pass 1","fish specimens captured electrofishing pass 2"))
+        #all samplings done post 2018 (by Stroud) are summarized in CharacteristicName=fish specimens captured electrofishing pass 1 or 2; samplings prior to 2018 are summarized by CharacteristicName=fish - count of individuals captured by species, but in both cases the data are expressed as total count of individuals in 'ResultMeasureValue' and id's in 'SubjectTaxonomicName'
+
+ 
+out_data = temp_data_subset %>%
+  mutate(samplingYear =  as.factor(year(temp_data_subset$ActivityStartDate))) %>%
+    group_by(samplingYear,SubjectTaxonomicName) %>%
+    summarise(TotalCount = sum(as.numeric(ResultMeasureValue),na.rm=T))
+  
+out_richness = out_data %>%
+    group_by(samplingYear) %>%
+    summarise(SpeciesRichness = n_distinct(SubjectTaxonomicName),
+              ShannonIndex = round(diversity(TotalCount, index = "shannon"),2),
+              SimpsonIndex = round(diversity(TotalCount, index = "simpson"),2))
+
+
+# Add site results to output list
+  NCRNFishPopData[[site]] = out_data
+  NCRNFishRichness[[site]] = out_richness 
+  
+
+        
+}        
+       
+
+
+#Unlist results and save final dataset
+all_fish_diversity_data = data.frame()
+for (i in 1:length(sites)) {
+  
+  temp = as.data.frame(NCRNFishRichness[[i]]) 
+  temp$site = rep(sites[i],nrow(temp))
+  all_fish_diversity_data = rbind(all_fish_diversity_data,temp)
+    
+}
+
+# Split the site into three 
+split_columns = str_split_fixed(all_fish_diversity_data$site, "_", 3)
+result_df <- data.frame(split_columns)
+colnames(result_df) <- c("col1", "Park", "Site")
+all_fish_diversity_data[,4] = result_df$Site
+all_fish_diversity_data$Park = result_df$Park
+
+write.csv(all_fish_diversity_data,"all_fish_diversity_data.csv")
+
+
+#Unlist results and save final dataset
+all_fish_count_data = data.frame()
+for (i in 1:length(sites)) {
+  
+  temp = as.data.frame(NCRNFishPopData[[i]]) 
+  temp$site = rep(sites[i],nrow(temp))
+  all_fish_count_data = rbind(all_fish_count_data,temp)
+    
+}
+
+# Split the site into three 
+split_columns = str_split_fixed(all_fish_count_data$site, "_", 3)
+result_df <- data.frame(split_columns)
+colnames(result_df) <- c("col1", "Park", "Site")
+all_fish_count_data[,4] = result_df$Site
+all_fish_count_data$Park = result_df$Park
+
+write.csv(all_fish_count_data,"all_fish_count_data.csv")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
