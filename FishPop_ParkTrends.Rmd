@@ -1,0 +1,75 @@
+---
+title: "Change over time of fish community compositon and abundance at each site and park"
+author: "MPeipoch"
+date: "2023-12-03"
+output: pdf_document
+---
+
+Necessary packages for the script
+```{r, echo=FALSE}
+# required packages
+req_packs <- c("ggplot2", "dplyr", "vegan", "tidyr","stringr","openxlsx","sf","raster","trend","lubridate","FSA")
+
+
+########### if installed, then install and load ###################################
+new_packs <- req_packs[!(req_packs %in% installed.packages()[,"Package"])]
+if (length(new_packs) > 0) {
+  install.packages(new_packs,dependencies=T)
+}
+
+lapply(req_packs, function(pkg) {
+  if (!require(pkg, character.only = TRUE)) {
+    stop(paste("Package", pkg, "could not be loaded. Fix it!"))
+  }
+  library(pkg, character.only = TRUE)
+})
+
+
+
+
+```
+
+
+TEMPORAL CHANGE IN FISH COMMUNITY COMPOSITON AND ABUNDANCE
+Uses dataset 'all_fish_count_data.csv' from FishDataCleaning script 
+```{r}
+
+
+##Import data file 
+
+setwd("G:/My Drive/NPS_FishDataAnalysis/")
+fishData = read.csv("all_fish_count_data.csv")
+
+# Create a dummy variable based on year difference
+fishData = fishData %>%
+  group_by(site) %>%
+  mutate(X = samplingYear - min(samplingYear))
+
+#subset each species
+fishData_subset = fishData %>%
+  filter(., SubjectTaxonomicName == "Cottus spp.")
+
+
+
+#plot the data
+ggplot(fishData_subset, aes(x = X, y = TotalCount)) +
+  geom_line(size = 1) +
+  geom_point(size = 3, shape = 16) +  # Use shape 16 for solid dots
+  labs(title = "Fish Species Abundance Over Years",
+       x = "Year",
+       y = "Number of Individuals") +
+  theme_minimal() +
+  facet_wrap(~site, scales = "free_y")
+
+
+
+
+```
+
+
+
+
+
+
+
+

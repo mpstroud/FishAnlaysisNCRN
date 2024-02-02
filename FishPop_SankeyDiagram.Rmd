@@ -8,7 +8,8 @@ output: pdf_document
 Necessary packages for the script
 ```{r, echo=FALSE}
 # required packages
-req_packs <- c("ggplot2", "dplyr", "vegan", "tidyr","stringr","openxlsx","sf","raster","trend","lubridate","FSA")
+req_packs <- c("ggplot2", "dplyr", "vegan", "tidyr","stringr","openxlsx","sf","raster","trend","lubridate","FSA",
+               "googleVis")
 
 
 ########### if installed, then install and load ###################################
@@ -30,35 +31,110 @@ lapply(req_packs, function(pkg) {
 ```
 
 
-RICHNESS OF FISH COMMUNITY COMPOSITON the NCR, PARKS and SITES 
-Uses dataset 'all_fish_diversity_data.csv' from FishDataCleaning script 
+RICHNESS OF FISH COMMUNITY at the NCRN, PARKS and SITES 
+Uses dataset 'all_fish_diversity_data.csv' and 'all_fish_diversity_data_byPark.csv' from FishDataCleaning script 
 ```{r}
-
-
 
 ###Import data file 
 
-setwd("G:/My Drive/NPS_FishDataAnalysis/")
-fishData = read.csv("all_fish_diversity_data.csv")
+setwd("/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/")
+fishDataSite = read.csv("all_fish_diversity_data.csv")
+fishDataPark = read.csv("all_fish_diversity_data_byPark.csv")
   
+  
+###Prepare park data for generating the plot
+fishData_sankey_Park = fishDataPark %>%
+  mutate(region = "NCRN") %>%
+  dplyr::select (-X) %>%
+  rename(From = region, To = site, Weight = SpeciesRichness) %>%
+  dplyr::select(From, To, Weight)
 
 
-# Create a dummy variable based on year difference
-fishData = fishData %>%
+###Prepare site data for generating the plot
+fishData_sankey_Site = fishDataSite %>%
+  mutate(region = "NCRN") %>%
+  group_by(region, Park, site) %>%
+  reframe(richness = max(SpeciesRichness)) %>%
+  dplyr::select (-region) %>%
+  rename(From = Park, To = site, Weight = richness)
+
+fishData_sankey = rbind(fishData_sankey_Park,fishData_sankey_Site)
+
+
+
+
+
+
+###Prepare site data for generating the plot
+fishData_sankey = fishDataSite %>%
+  dplyr::select(site,samplingYear,SpeciesRichness) %>%
   group_by(site) %>%
-  mutate(X = samplingYear - min(samplingYear))
+  reframe(SpeciesRichness = max(SpeciesRichness)) %>%
+    separate(site, into = c("region", "NCRN_park", "site"), sep = "_")
+
+# Install and load required packages
+install.packages("ggplot2")
+install.packages("ggalluvial")
+library(ggplot2)
+library(ggalluvial)
+
+ggplot(fishData_sankey,
+       aes(y = SpeciesRichness,
+           axis1 = site, axis2 = NCRN_park, axis3 = region)) +
+  geom_alluvium(aes(fill = NCRN_park),
+                width = 1/8, knot.pos = 0, reverse = FALSE) +
+  scale_fill_manual(values = c(GWMP = "#70493D", HAFE = "#E2AC76",
+                               CATO = "#3F752B", PRWI = "#81B0E4",
+                               MONO = "#000000", ROCR = "#58595B",
+                               MANA = "#F7941E", WOTR = "#C2B59B",
+                               NACE = "#93C2E2", ANTI = "#7851C4",
+                               CHOH = "#8DC63F")) +
+  guides(fill = "none") +
+  geom_stratum(alpha = .25, width = 1/8, reverse = FALSE) +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)),
+            reverse = FALSE) +
+  scale_x_continuous(breaks = 1:3, labels = c("Site", "Park", "Region")) +
+  coord_flip() +
+  ggtitle("Fish Richness")
 
 
 
-#plot the data
-ggplot(fishData, aes(x = X, y = SpeciesRichness)) +
-  geom_line(size = 1) +
-  geom_point(size = 3, shape = 16) +  # Use shape 16 for solid dots
-  labs(title = "Species Richness Over Years",
-       x = "Year",
-       y = "Number of Individuals") +
-  theme_minimal() +
-  facet_wrap(~site, scales = "free_y")
+ggplot(fishData_sankey,
+       aes(x = sites, stratum = as.factor(NCRN_park), alluvium = SpeciesRichness,
+           fill = as.factor(NCRN_park), label = as.factor(NCRN_park))) +
+  scale_fill_manual(values = c(GWMP = "#70493D", HAFE = "#E2AC76",
+                               CATO = "#3F752B", PRWI = "#81B0E4",
+                               MONO = "#000000", ROCR = "#58595B",
+                               MANA = "#F7941E", WOTR = "#C2B59B",
+                               NACE = "#93C2E2", ANTI = "#7851C4",
+                               CHOH = "#8DC63F")) +
+  geom_flow(stat = "alluvium", lode.guidance = "frontback",
+            color = "darkgray") +
+  geom_stratum() +
+  theme(legend.position = "bottom") +
+  ggtitle("Student Curricula Across Several Semesters")
+
+
+
+
+data(vaccinations)
+vaccinations <- transform(vaccinations,
+                          response = factor(response, rev(levels(response))))
+ggplot(fishData_sankey,
+       aes(x = survey, stratum = response, alluvium = subject,
+           y = freq,
+           fill = response, label = response)) +
+  scale_x_discrete(expand = c(.1, .1)) +
+  geom_flow() +
+  geom_stratum(alpha = .5) +
+  geom_text(stat = "stratum", size = 3) +
+  theme(legend.position = "none") +
+  ggtitle("vaccination survey responses at three points in time")
+
+
+
+
+
 
 ```
 

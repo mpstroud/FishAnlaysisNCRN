@@ -35,7 +35,7 @@ This section generates two new datasets, one containing general diversity metric
 
 ###Import data file 
 
-setwd("G:/My Drive/NPS_FishDataAnalysis/")
+setwd("/Users/mpeipoch/Library/CloudStorage/GoogleDrive-mpeipoch@stroudcenter.org/My Drive/NPS_FishDataAnalysis")
 wdata = read.csv("20231128_wqp_wqx_bss_wq_npsncrn.csv")
   
 
@@ -103,7 +103,7 @@ colnames(result_df) <- c("col1", "Park", "Site")
 all_fish_diversity_data[,4] = result_df$Site
 all_fish_diversity_data$Park = result_df$Park
 
-write.csv(all_fish_diversity_data,"all_fish_diversity_data.csv")
+write.csv(all_fish_diversity_data,"/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/all_fish_diversity_data.csv")
 
 
 #Unlist results and save final dataset
@@ -123,13 +123,78 @@ colnames(result_df) <- c("col1", "Park", "Site")
 all_fish_count_data[,4] = result_df$Site
 all_fish_count_data$Park = result_df$Park
 
-write.csv(all_fish_count_data,"all_fish_count_data.csv")
+write.csv(all_fish_count_data,"/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/all_fish_count_data.csv")
 
 
 ```
 
 
+ORGANIZING FISH DATA FOR COMMUNITY ANALYSIS:
+This section generates anther diveristy dataset at the Park level to generate the Sankey Plot.
+```{r}
 
+###Import data file 
+
+setwd("/Users/mpeipoch/Library/CloudStorage/GoogleDrive-mpeipoch@stroudcenter.org/My Drive/NPS_FishDataAnalysis")
+wdata = read.csv("20231128_wqp_wqx_bss_wq_npsncrn.csv")
+  
+
+  
+###Create a vector with the unique sites in USNPS NCRN Biological stream survey
+wdata = wdata %>%
+    separate(MonitoringLocationIdentifier, into = c("region", "NCRN_park", "site"), sep = "_")
+
+
+  
+parks = unique(wdata$NCRN_park)
+
+
+
+###Create lists of length=sites in which all available fish data and diversity metrics per site is stored in a unique format and file
+
+NCRNFishRichness = list() # Results output--Richness
+
+
+for (park in parks) {
+  
+  # Subset data for each park
+  temp_data = wdata %>% 
+    dplyr::filter(NCRN_park == park)
+
+    
+        temp_data_subset = temp_data %>% #select variable per site and method 
+          dplyr::filter(CharacteristicName %in% c("fish - count of individuals captured by species","fish specimens captured electrofishing pass 1","fish specimens captured electrofishing pass 2"))
+        #all samplings done post 2018 (by Stroud) are summarized in CharacteristicName=fish specimens captured electrofishing pass 1 or 2; samplings prior to 2018 are summarized by CharacteristicName=fish - count of individuals captured by species, but in both cases the data are expressed as total count of individuals in 'ResultMeasureValue' and id's in 'SubjectTaxonomicName'
+
+ 
+out_data = temp_data_subset %>%
+    summarise(SpeciesRichness = n_distinct(SubjectTaxonomicName))
+
+
+# Add park results to output list
+  NCRNFishRichness[[park]] = out_data
+  
+
+        
+}        
+       
+
+
+#Unlist results and save final dataset
+all_fish_diversity_data = data.frame()
+for (i in 1:length(parks)) {
+  
+  temp = as.data.frame(NCRNFishRichness[[i]]) 
+  temp$site = rep(parks[i],nrow(temp))
+  all_fish_diversity_data = rbind(all_fish_diversity_data,temp)
+    
+}
+
+
+write.csv(all_fish_diversity_data,"/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/all_fish_diversity_data_byPark.csv")
+
+
+```
 
 
 
