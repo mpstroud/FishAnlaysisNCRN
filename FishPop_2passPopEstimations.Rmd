@@ -1,0 +1,143 @@
+---
+title: "Estimate Fish Population size and encounter probability per site and year"
+author: "MPeipoch"
+date: "2023-12-03"
+output: pdf_document
+---
+
+Necessary packages for the script
+```{r, echo=FALSE}
+# required packages
+req_packs <- c("ggplot2", "dplyr", "vegan", "tidyr","stringr","openxlsx","sf","raster","trend","lubridate","FSA")
+
+
+########### if installed, then install and load ###################################
+new_packs <- req_packs[!(req_packs %in% installed.packages()[,"Package"])]
+if (length(new_packs) > 0) {
+  install.packages(new_packs,dependencies=T)
+}
+
+lapply(req_packs, function(pkg) {
+  if (!require(pkg, character.only = TRUE)) {
+    stop(paste("Package", pkg, "could not be loaded. Fix it!"))
+  }
+  library(pkg, character.only = TRUE)
+})
+
+
+
+
+```
+
+
+
+Population estimates for 2-pass removal data.
+This uses the lastest '20231128_wqp_wqx_bss_wq_npsncrn.csv' dataset from Charlie.
+```{r}
+
+###Import data file 
+
+setwd("/Users/mpeipoch/Library/CloudStorage/GoogleDrive-mpeipoch@stroudcenter.org/My Drive/NPS_FishDataAnalysis/")
+wdata = read.csv("20231128_wqp_wqx_bss_wq_npsncrn.csv")
+  
+
+  
+###Create a vector with the unique sites in USNPS NCRN Biological stream survey
+
+sites = unique(wdata$MonitoringLocationIdentifier)
+
+
+
+###Create dataframes of  in which all population estimations per site and year is stored with a consistent output format in a single file
+  
+  
+  NCRNFishPopEstData = data.frame(matrix(nrow = 0, ncol = 9))
+    colnames(NCRNFishPopEstData) = c("Id","No", "No.se", "No.LCI", "No.UCI",
+                                  "p", "p.se", "p.LCI", "p.UCI")
+
+      pop_est_results = data.frame(matrix(nrow = 0, ncol = 9))
+        colnames(pop_est_results) = c("Id","No", "No.se", "No.LCI", "No.UCI",
+                                      "p", "p.se", "p.LCI", "p.UCI")
+
+  
+ for (site in sites) {
+  
+  # Subset data for each site
+  temp_data = wdata %>% 
+    dplyr::filter(MonitoringLocationIdentifier == site)
+
+    
+        temp_data_subset = temp_data %>% #select variable per site and method 
+          dplyr::filter(CharacteristicName %in% c("fish - count of individuals captured by species","fish specimens captured electrofishing pass 1","fish specimens captured electrofishing pass 2"))
+
+ out_data = temp_data_subset %>%
+  mutate(samplingYear =  as.factor(year(temp_data_subset$ActivityStartDate))) %>%
+    group_by(samplingYear, SubjectTaxonomicName, SampleCollectionMethod.MethodDescriptionText) %>%
+    summarise(TotalCount = sum(as.numeric(ResultMeasureValue),na.rm=T))
+  
+ out_data$group = with(out_data,interaction(samplingYear,SubjectTaxonomicName,sep = "_"))
+ 
+ ## split the catch by the different groups (creates a list of catch vectors)
+ds = split(out_data$TotalCount,out_data$group)
+
+ #There are many list object with no data or one value, we'll exclude them from further analysis
+            for (i in seq_along(ds)) {
+              if (length(ds[[i]]) == 2) {
+                
+               pop_est =  removal(ds[[i]],method="Seber2")
+               pop_est = as.data.frame(pop_est$est)
+               pop_est = as.data.frame(t(pop_est))
+               row.names(pop_est) = paste(site,names(ds)[i], sep="_")
+               pop_est <- pop_est %>%
+                  tibble::rownames_to_column(var = "Id")
+               
+
+               
+              } else {next}
+                           pop_est_results = rbind(pop_est_results,pop_est)
+                           
+                           }
+
+NCRNFishPopEstData = rbind(NCRNFishPopEstData,pop_est_results)
+pop_est_results = data.frame(matrix(nrow = 0, ncol = 9))
+        colnames(pop_est_results) = c("Id","No", "No.se", "No.LCI", "No.UCI",
+                                      "p", "p.se", "p.LCI", "p.UCI")
+}
+  
+  
+# keep only complete cases and separate Id column into three columns
+complete_cases_NCRNFishPopEstData = NCRNFishPopEstData[complete.cases(NCRNFishPopEstData), ]
+separated_dataset <- complete_cases_NCRNFishPopEstData %>%
+  separate(Id, into = c("project","park","site", "Year", "Species"), sep = "\\_")
+NCRNFishPopEstData = separated_dataset %>%
+  mutate_if(is.numeric, function(x) round(x, digits = 2))
+
+write.csv(NCRNFishPopEstData,"/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN//Datasets/NCRNFishPopEstData.csv") 
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
