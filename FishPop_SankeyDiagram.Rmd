@@ -35,101 +35,62 @@ RICHNESS OF FISH COMMUNITY at the NCRN, PARKS and SITES
 Uses dataset 'all_fish_diversity_data.csv' and 'all_fish_diversity_data_byPark.csv' from FishDataCleaning script 
 ```{r}
 
-###Import data file 
-
-setwd("/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/")
-fishDataSite = read.csv("all_fish_diversity_data.csv")
-fishDataPark = read.csv("all_fish_diversity_data_byPark.csv")
-  
-  
-###Prepare park data for generating the plot
-fishData_sankey_Park = fishDataPark %>%
-  mutate(region = "NCRN") %>%
-  dplyr::select (-X) %>%
-  rename(From = region, To = site, Weight = SpeciesRichness) %>%
-  dplyr::select(From, To, Weight)
-
-
-###Prepare site data for generating the plot
-fishData_sankey_Site = fishDataSite %>%
-  mutate(region = "NCRN") %>%
-  group_by(region, Park, site) %>%
-  reframe(richness = max(SpeciesRichness)) %>%
-  dplyr::select (-region) %>%
-  rename(From = Park, To = site, Weight = richness)
-
-fishData_sankey = rbind(fishData_sankey_Park,fishData_sankey_Site)
-
-
-
-
-
-
-###Prepare site data for generating the plot
-fishData_sankey = fishDataSite %>%
-  dplyr::select(site,samplingYear,SpeciesRichness) %>%
-  group_by(site) %>%
-  reframe(SpeciesRichness = max(SpeciesRichness)) %>%
-    separate(site, into = c("region", "NCRN_park", "site"), sep = "_")
-
 # Install and load required packages
 install.packages("ggplot2")
 install.packages("ggalluvial")
 library(ggplot2)
 library(ggalluvial)
 
-ggplot(fishData_sankey,
-       aes(y = SpeciesRichness,
-           axis1 = site, axis2 = NCRN_park, axis3 = region)) +
-  geom_alluvium(aes(fill = NCRN_park),
-                width = 1/8, knot.pos = 0, reverse = FALSE) +
-  scale_fill_manual(values = c(GWMP = "#70493D", HAFE = "#E2AC76",
-                               CATO = "#3F752B", PRWI = "#81B0E4",
-                               MONO = "#000000", ROCR = "#58595B",
-                               MANA = "#F7941E", WOTR = "#C2B59B",
-                               NACE = "#93C2E2", ANTI = "#7851C4",
-                               CHOH = "#8DC63F")) +
-  guides(fill = "none") +
-  geom_stratum(alpha = .25, width = 1/8, reverse = FALSE) +
-  geom_text(stat = "stratum", aes(label = after_stat(stratum)),
-            reverse = FALSE) +
-  scale_x_continuous(breaks = 1:3, labels = c("Site", "Park", "Region")) +
-  coord_flip() +
-  ggtitle("Fish Richness")
+###Import data file 
 
+setwd("/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/")
+fishDataSite = read.csv("all_fish_diversity_data.csv")
+fishCountSite = read.csv("all_fish_count_data.csv")
+fishDataPark = read.csv("all_fish_diversity_data_byPark.csv")
+  
+ 
+##############Change per taxa over time and site
 
+fishCountOneSite = fishCountSite %>%
+  filter (Park =="GWMP") %>%
+  filter(TotalCount > 20)
+  
 
-ggplot(fishData_sankey,
-       aes(x = sites, stratum = as.factor(NCRN_park), alluvium = SpeciesRichness,
-           fill = as.factor(NCRN_park), label = as.factor(NCRN_park))) +
-  scale_fill_manual(values = c(GWMP = "#70493D", HAFE = "#E2AC76",
-                               CATO = "#3F752B", PRWI = "#81B0E4",
-                               MONO = "#000000", ROCR = "#58595B",
-                               MANA = "#F7941E", WOTR = "#C2B59B",
-                               NACE = "#93C2E2", ANTI = "#7851C4",
-                               CHOH = "#8DC63F")) +
-  geom_flow(stat = "alluvium", lode.guidance = "frontback",
-            color = "darkgray") +
+#with site as legend
+ggplot(data = fishCountOneSite,
+       aes(axis1 = samplingYear, axis2 = SubjectTaxonomicName, y = TotalCount)) +
+  geom_alluvium(aes(fill = site)) +
   geom_stratum() +
-  theme(legend.position = "bottom") +
-  ggtitle("Student Curricula Across Several Semesters")
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+ scale_fill_manual(values = c("#70493D", "#F7941E","#3F752B","#81B0E4")) +
+  theme_void()
+
+
+#with taxa as legend
+ggplot(data = fishCountOneSite,
+       aes(axis1 = samplingYear, axis2 = site, y = TotalCount)) +
+  geom_alluvium(aes(fill = SubjectTaxonomicName)) +
+  geom_stratum() +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Survey", "Response"),
+                   expand = c(0.15, 0.05)) +
+ scale_fill_viridis_d(option = "D") + 
+  theme_void()
+
+ 
 
 
 
 
-data(vaccinations)
-vaccinations <- transform(vaccinations,
-                          response = factor(response, rev(levels(response))))
-ggplot(fishData_sankey,
-       aes(x = survey, stratum = response, alluvium = subject,
-           y = freq,
-           fill = response, label = response)) +
-  scale_x_discrete(expand = c(.1, .1)) +
-  geom_flow() +
-  geom_stratum(alpha = .5) +
-  geom_text(stat = "stratum", size = 3) +
-  theme(legend.position = "none") +
-  ggtitle("vaccination survey responses at three points in time")
+
+
+
+
+
 
 
 
