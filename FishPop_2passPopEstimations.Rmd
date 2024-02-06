@@ -130,11 +130,52 @@ This uses the lastest 'NCRNFishPopEstData' dataset from previous code
 ###Import data file 
 
 setwd("/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN//Datasets/")
-wdata = read.csv("NCRNFishPopEstData.csv")
+popdata = read.csv("NCRNFishPopEstData.csv")
+
+
+
+###population size and probability of capture from the number of fish removed in k-, 3-, or 2-passes in a closed population.
+plot(log10(popdata$No.se),popdata$p)
+
+popdataOneSite = popdata %>%
+  filter (park =="GWMP") %>%
+  filter(site == "TURU")
+  
+
+
+ggplot(popdataOneSite, aes(x = Year, y = No, group = Species, color = Species)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = No - No.se, ymax = No + No.se),
+                width = 0.2, position = position_dodge(0.2)) +
+  labs(title = "population size by Year and Site",
+       x = "Year",
+       y = "Population Size") +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+
+popdataOnePark = popdata %>%
+  filter (park =="GWMP") %>%
+  filter(No > 10)
+  
+
+ggplot(popdataOnePark, aes(x = as.factor(Year), y = No, fill = as.factor(Species))) +
+  geom_bar(stat = "identity", position = "stack", width = 0.7) +
+  scale_fill_viridis_c(option = "viridis") + 
+  labs(title = "Population Size by Year and Site",
+       x = "Year",
+       y = "Population Size") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~site, scales = "free_y", ncol = 1)
 
 
 
 
+
+
+```
 
 
 
