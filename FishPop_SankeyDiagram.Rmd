@@ -53,26 +53,28 @@ fishDataPark = read.csv("all_fish_diversity_data_byPark.csv")
 
 fishCountOneSite = fishCountSite %>%
   filter (Park =="GWMP") %>%
-  filter(TotalCount > 20)
+  filter(SubjectTaxonomicName == "Rhinichthys atratulus")
   
 
 #with site as legend
 ggplot(data = fishCountOneSite,
-       aes(axis1 = samplingYear, axis2 = SubjectTaxonomicName, y = TotalCount)) +
-  geom_alluvium(aes(fill = site)) +
+       aes(axis1 = samplingYear, axis2 = site, y = TotalCount)) +
+  geom_alluvium(aes(fill = site), alpha = 0.9) +  # Adjust alpha and width here
   geom_stratum() +
   geom_text(stat = "stratum",
             aes(label = after_stat(stratum))) +
   scale_x_discrete(limits = c("Survey", "Response"),
                    expand = c(0.15, 0.05)) +
- scale_fill_manual(values = c("#70493D", "#F7941E","#3F752B","#81B0E4")) +
+  scale_fill_manual(values = c("#70493D", "#F7941E", "#3F752B", "#81B0E4")) +
   theme_void()
+
+
 
 
 #with taxa as legend
 ggplot(data = fishCountOneSite,
        aes(axis1 = samplingYear, axis2 = site, y = TotalCount)) +
-  geom_alluvium(aes(fill = SubjectTaxonomicName)) +
+  geom_alluvium(aes(fill = as.factor(site))) +
   geom_stratum() +
   geom_text(stat = "stratum",
             aes(label = after_stat(stratum))) +
@@ -82,8 +84,6 @@ ggplot(data = fishCountOneSite,
   theme_void()
 
  
-
-
 
 
 

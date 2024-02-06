@@ -123,6 +123,16 @@ write.csv(NCRNFishPopEstData,"/Volumes/Stroud Users/Peipoch/Private/dataAnalysis
 
 
 
+Plot results of population estimates for 2-pass removal data.
+This uses the lastest 'NCRNFishPopEstData' dataset from previous code
+```{r}
+
+###Import data file 
+
+setwd("/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN//Datasets/")
+wdata = read.csv("NCRNFishPopEstData.csv")
+
+
 
 
 
