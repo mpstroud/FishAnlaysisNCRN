@@ -162,7 +162,6 @@ popdataOnePark = popdata %>%
 
 ggplot(popdataOnePark, aes(x = as.factor(Year), y = No, fill = as.factor(Species))) +
   geom_bar(stat = "identity", position = "stack", width = 0.7) +
-  scale_fill_viridis_c(option = "viridis") + 
   labs(title = "Population Size by Year and Site",
        x = "Year",
        y = "Population Size") +

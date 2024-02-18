@@ -100,7 +100,7 @@ for (i in 1:length(sites)) {
 split_columns = str_split_fixed(all_fish_diversity_data$site, "_", 3)
 result_df <- data.frame(split_columns)
 colnames(result_df) <- c("col1", "Park", "Site")
-all_fish_diversity_data[,4] = result_df$Site
+all_fish_diversity_data[,5] = result_df$Site
 all_fish_diversity_data$Park = result_df$Park
 
 write.csv(all_fish_diversity_data,"/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/all_fish_diversity_data.csv")
@@ -130,7 +130,7 @@ write.csv(all_fish_count_data,"/Volumes/Stroud Users/Peipoch/Private/dataAnalysi
 
 
 ORGANIZING FISH DATA FOR COMMUNITY ANALYSIS:
-This section generates anther diveristy dataset at the Park level to generate the Sankey Plot.
+This section generates another diversity dataset at the Park level to generate the Sankey Plot.
 ```{r}
 
 ###Import data file 
