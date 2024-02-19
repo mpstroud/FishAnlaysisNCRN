@@ -169,7 +169,7 @@ Fishdata = read.csv("all_fish_count_data.csv")
 
 
 # Get unique site names
-unique_sites <- unique(Chemdata$site)
+unique_sites <- unique(Fishdata$site)
 
 # empty lists to store results
 filtered_chem_data_list <- list()
@@ -184,7 +184,7 @@ for (i in unique_sites) {
   
   #  Fishdata
   filtered_fish_data <- Fishdata %>%
-    filter(site == i & TotalCount > 10 )
+    filter(site == i & TotalCount > 3 )
   
   # store into empty lists
   filtered_chem_data_list[[i]] <- filtered_chem_data
@@ -197,7 +197,7 @@ PlotFishdata <- bind_rows(filtered_fish_data_list, .id = "site") # Combine resul
 
 
 ######################################SELECT WATER CHEMISTRY OR PARAMATER OF INTEREST#########################################
-watChemParam = "Temperature, water"
+watChemParam = "Salinity"
 
 
 
@@ -241,7 +241,7 @@ for (i in unique_sites) {
 
 
 # Save the plots to files 
-file_path <- "/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Figures/FishChembySite"
+file_path <- "C:/Users/marcp/Documents/FishAnlaysisNCRN/Figures/FishChembySite/Salinity"
 for (i in unique_sites) {
   # Save each plot to a file
   ggsave(file.path(file_path, paste("plot_site_", i, watChemParam, ".png", sep = "")),
@@ -249,7 +249,7 @@ for (i in unique_sites) {
 }
 
 
-print(plots_list[[3]])
+
 
 ```
 
