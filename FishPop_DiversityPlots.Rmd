@@ -9,7 +9,7 @@ Necessary packages for the script
 ```{r, echo=FALSE}
 # required packages
 req_packs <- c("ggplot2", "dplyr", "vegan", "tidyr","stringr","openxlsx","sf","raster","trend","lubridate","FSA",
-               "googleVis","dendextend")
+               "googleVis","dendextend","ape")
 
 
 ########### if installed, then install and load ###################################
@@ -67,53 +67,27 @@ ggplot(fishDataSite, aes(x = samplingYear, y = SpeciesRichness, color = site)) +
 fishCountMatrix = read.csv("all_fish_matrix_data.csv")
 
 
-fishCountData <- fishCountMatrix[, -(1:3)] 
+fishCountData = fishCountMatrix[, -(1:3)]
+row.names(fishCountData) = paste(fishCountMatrix$Park, fishCountMatrix$site, fishCountMatrix$year,sep = "_")
 
-# Create a distance matrix
-dist_matrix <- dist(scale(fishCountData))
+dist_matrix = dist(scale(fishCountData))
+hclust_result = hclust(dist_matrix, method = "complete")
 
-# Perform hierarchical clustering
-hclust_result <- hclust(dist_matrix, method = "complete")
 
-# Create a dendrogram plot
+plot(as.phylo(hclust_result), type = "fan")
+
+plot(as.phylo(hclust_result), type = "unrooted", cex = 0.6,
+     no.margin = TRUE)
+
+# Default plot
+plot(as.phylo(hclust_result), cex = 0.6, label.offset = 0.5)
+
+
+
+
+#couldn't figure out how to edit colors and text with dendextend package
 dend <- as.dendrogram(hclust_result)
 
-
-# Modify the labels
-new_labels <- labels(dend)
-
-matching_data <- data.frame(
-  row_number = new_labels,
-  site = fishCountMatrix$site[new_labels],
-  Park = fishCountMatrix$Park[new_labels]
-)
-
-# Define a color scale based on unique Park labels
-color_scale <- ggplot2::scale_color_manual(values = rainbow(length(unique(matching_data$Park))))
-
-
-# Set other attributes
-dend_colored <- dend %>%
-  set("branches_lwd", 2) %>%
-  set("branches_col", value = matching_data$Park) %>% # Set branches color
-  set("labels_colors", value = matching_data$Park) %>%
-  set("labels_cex", c(0.9, 1.2)) %>%
-  set("leaves_pch", 19) %>%
-  set("labels", value = matching_data$Park) 
-
-# Convert dendrogram to a ggplot object
-dend_plot <- as.ggdend(dend_colored)
-
-
-
-# Convert dendrogram to a ggplot object
-dend_plot <- as.ggdend(dend_colored)
-ggplot(dend_plot)
-
-
-ggplot(dend_plot, labels = FALSE) + 
-  scale_y_reverse(expand = c(0.2, 0)) +
-  coord_polar(theta="x")
 
 
 ```
