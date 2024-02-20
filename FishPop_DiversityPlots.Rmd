@@ -9,7 +9,7 @@ Necessary packages for the script
 ```{r, echo=FALSE}
 # required packages
 req_packs <- c("ggplot2", "dplyr", "vegan", "tidyr","stringr","openxlsx","sf","raster","trend","lubridate","FSA",
-               "googleVis","dendextend","ape")
+               "googleVis","dendextend","ape","cowplot")
 
 
 ########### if installed, then install and load ###################################
@@ -57,9 +57,55 @@ ggplot(fishDataSite, aes(x = samplingYear, y = SpeciesRichness, color = site)) +
   theme(legend.position = "right")  # Position the legend to the right
 
 
+#Four panel plot###########################################################################
+
+# Calculate average Species Richness per Park
+average_species_richness <- aggregate(SpeciesRichness ~ Park, data = fishDataSite, FUN = mean)
+
+# Plot 1: Species Richness by Park (Upper Left)
+plot1 = ggplot(fishDataSite, aes(x = Park, y = SpeciesRichness, fill = Park)) +
+  geom_boxplot() +
+  labs(title = "Average Species Richness by Park", x = "Park", y = "Average Species Richness") +
+  scale_fill_manual(values = c("#603913","#8DC63F", "#93C2E2","#7851C4", "#2BB673","#F7941E",
+                    "#DBCA65","#58595B","#A97C50","#C2B59B",
+                    "#000000"))+
+  theme(legend.position = "none")
+
+# Plot 2: Barplot of Shannon and Simpson Indices by Park (Upper Right)
+plot2 = ggplot(fishDataSite, aes(x = Park, y = SimpsonIndex, fill = Park)) +
+  geom_boxplot() +
+  labs(title = "Average Species Richness by Park", x = "Park", y = "Average Species Richness") +
+  scale_fill_manual(values = c("#603913","#8DC63F", "#93C2E2","#7851C4", "#2BB673","#F7941E",
+                    "#DBCA65","#58595B","#A97C50","#C2B59B",
+                    "#000000"))+
+  theme(legend.position = "none")
+
+# Plot 3: Species Richness by Park and Year (Lower Left)
+plot3 = ggplot(fishDataSite, aes(x = factor(samplingYear), y = SpeciesRichness, fill = Park)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+  labs(title = "Species Richness by Park and Year", x = "Year", y = "Species Richness") +
+  theme(legend.position = "bottom") +
+  scale_fill_manual(values = c("#603913", "#8DC63F", "#93C2E2", "#7851C4", "#2BB673", "#F7941E",
+                               "#DBCA65", "#58595B", "#A97C50", "#C2B59B", "#000000"))
+
+# Plot 4: Shannon and Simpson Indices by Site in Parks PRWI and ROCR (Lower Right)
+filtered_data = subset(fishDataSite, Park %in% c("PRWI", "ROCR"))
+plot4 = ggplot(filtered_data, aes(x = samplingYear, y = ShannonIndex, color = site)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Shannon Index by Site in Parks PRWI and ROCR", x = "Year", y = "Shannon Index") +
+  theme(legend.position = "bottom")
+
+# Combine all plots into a 2x2 grid
+final_plot <- plot_grid(plot1, plot2, plot3, plot4, ncol = 2)
+
+# Display the final plot
+print(final_plot)
+
 ```
 
-
+DENDOGRAM OF ALL SITES 
+Uses dataset 'all_fish_matrix_data.csv' from datasets folder
 ```{r}
 
 
