@@ -1,0 +1,255 @@
+---
+title: "Change over time of fish community compositon and abundance at each site and park"
+author: "MPeipoch"
+date: "2023-12-03"
+output: pdf_document
+---
+
+Necessary packages for the script
+```{r, echo=FALSE}
+# required packages
+req_packs <- c("ggplot2", "dplyr", "vegan", "tidyr","stringr","openxlsx","sf","raster","trend","lubridate","FSA","cowplot")
+
+
+########### if installed, then install and load ###################################
+new_packs <- req_packs[!(req_packs %in% installed.packages()[,"Package"])]
+if (length(new_packs) > 0) {
+  install.packages(new_packs,dependencies=T)
+}
+
+lapply(req_packs, function(pkg) {
+  if (!require(pkg, character.only = TRUE)) {
+    stop(paste("Package", pkg, "could not be loaded. Fix it!"))
+  }
+  library(pkg, character.only = TRUE)
+})
+
+
+
+
+```
+
+
+
+TEMPORAL CHANGE IN WATER QUALITY/HABITAT METRICS PER SITE & YEAR
+This section uses the  the lastest '20231128_wqp_wqx_bss_wq_npsncrn.csv' dataset from Charlie to calculate temporal trends in habitat and water quality per sitre that we can relate to fish change over time. 
+```{r}
+
+###Import data file 
+
+setwd("/Users/mpeipoch/Library/CloudStorage/GoogleDrive-mpeipoch@stroudcenter.org/My Drive/NPS_FishDataAnalysis")
+wdata = read.csv("20231128_wqp_wqx_bss_wq_npsncrn.csv")
+
+
+###Create a vector with the unique sites in USNPS NCRN Biological stream survey
+
+sites = unique(wdata$MonitoringLocationIdentifier)
+
+
+
+###Create lists of length=sites in which all available waterchem/habitat data and summary metrics per site is stored in a unique format and file
+
+NCRNAnnualWatChem = list() # Results output
+
+
+for (site in sites) {
+  
+  # Subset data for each site
+  temp_data = wdata %>% 
+    dplyr::filter(MonitoringLocationIdentifier == site)
+
+    
+        temp_data_subset = temp_data %>% #select variable per site and method 
+          dplyr::filter(CharacteristicName %in% c("Salinity","Specific conductance","Temperature, water"))
+          #add here the parameters of interest
+
+ 
+out_data = temp_data_subset %>%
+  mutate(samplingYear =  as.factor(year(temp_data_subset$ActivityStartDate))) %>%
+    group_by(samplingYear,CharacteristicName) %>%
+    summarise(AnnualMedian = median(as.numeric(ResultMeasureValue),na.rm=T),
+              AnnualMean = mean(as.numeric(ResultMeasureValue),na.rm=T),
+              AnnualCount = n(),
+              AnnualSD = sd(as.numeric(ResultMeasureValue)),
+              Annuallower_ci = AnnualMean - qt(0.975, df = n() - 1) * (AnnualSD / sqrt(n())),
+              Annualupper_ci = AnnualMean + qt(0.975, df = n() - 1) * (AnnualSD / sqrt(n())))
+
+
+# Add site results to output list
+  NCRNAnnualWatChem[[site]] = out_data 
+  
+
+        
+}        
+       
+
+
+#Unlist results and save final dataset
+all_water_chem_data = data.frame()
+for (i in 1:length(sites)) {
+  
+  temp = as.data.frame(NCRNAnnualWatChem[[i]]) 
+  temp$site = rep(sites[i],nrow(temp))
+  all_water_chem_data = rbind(all_water_chem_data,temp)
+    
+}
+
+# Split the site into three 
+split_columns = str_split_fixed(all_water_chem_data$site, "_", 3)
+result_df <- data.frame(split_columns)
+colnames(result_df) <- c("col1", "Park", "Site")
+all_water_chem_data[,9] = result_df$Site
+all_water_chem_data$Park = result_df$Park
+
+all_water_chem_data = all_water_chem_data%>%
+  mutate(AnnualMedian = round(AnnualMedian,2),
+         AnnualMean = round(as.numeric(AnnualMean),2),
+         AnnualSD = round(AnnualSD,2),
+         Annuallower_ci = round(Annuallower_ci,2),
+         Annualupper_ci = round(Annualupper_ci,2))
+
+
+write.csv(all_water_chem_data,"/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/all_water_chem_data.csv")
+
+
+
+
+```
+
+
+
+
+TEMPORAL CHANGE IN FISH COMMUNITY ABUNDANCE
+Uses dataset 'all_fish_count_data.csv' from FishDataCleaning script 
+```{r}
+
+
+##Import data file 
+
+setwd("/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/")
+fishData = read.csv("all_fish_count_data.csv")
+
+# Create a dummy variable based on year difference
+fishData = fishData %>%
+  group_by(site) %>%
+  mutate(X = samplingYear - min(samplingYear))
+
+#subset each species
+fishData_subset = fishData %>%
+  filter(., SubjectTaxonomicName == "Cottus spp.")
+
+
+
+#plot the data
+ggplot(fishData_subset, aes(x = X, y = TotalCount)) +
+  geom_line(size = 1) +
+  geom_point(size = 3, shape = 16) +  # Use shape 16 for solid dots
+  labs(title = "Fish Species Abundance Over Years",
+       x = "Year",
+       y = "Number of Individuals") +
+  theme_minimal() +
+  facet_wrap(~site, scales = "free_y")
+
+
+
+
+```
+
+
+
+
+PLOTTING BOTH CHANGE IN FISH COMMUNITY ABUNDANCE and WATER CHEM TRENDS
+Uses dataset 'all_fish_count_data.csv' and 'all_water_chem_data.csv' generated before
+```{r}
+###Import data file 
+
+setwd("/Volumes/Stroud Users/Peipoch/Private/dataAnalysis/R/Rstudio/FishAnalysisNCRN/Datasets/")
+Chemdata = read.csv("all_water_chem_data.csv")
+Fishdata = read.csv("all_fish_count_data.csv")
+
+
+# Get unique site names
+unique_sites <- unique(Fishdata$site)
+
+# empty lists to store results
+filtered_chem_data_list <- list()
+filtered_fish_data_list <- list()
+
+
+for (i in unique_sites) {
+  
+  #  Chemdata
+  filtered_chem_data <- Chemdata %>%
+    filter(site == i & AnnualCount > 10 )
+  
+  #  Fishdata
+  filtered_fish_data <- Fishdata %>%
+    filter(site == i & TotalCount > 3 )
+  
+  # store into empty lists
+  filtered_chem_data_list[[i]] <- filtered_chem_data
+  filtered_fish_data_list[[i]] <- filtered_fish_data
+}
+
+
+PlotChemdata <- bind_rows(filtered_chem_data_list, .id = "site") # Combine results into data frame
+PlotFishdata <- bind_rows(filtered_fish_data_list, .id = "site") # Combine results into data frame
+
+
+######################################SELECT WATER CHEMISTRY OR PARAMATER OF INTEREST#########################################
+watChemParam = "Salinity"
+
+
+
+
+# Initialize an empty list to store plots
+plots_list <- list()
+
+for (i in unique_sites) {
+  # Filter Chemdata
+  filtered_chem_data <- Chemdata %>%
+    filter(site == i & AnnualCount > 10 & CharacteristicName == watChemParam)
+  
+  # Filter Fishdata
+  filtered_fish_data <- Fishdata %>%
+    filter(site == i & TotalCount > 10)
+  
+  # Plot Chemdata
+  chem_plot <- ggplot(filtered_chem_data, aes(x = samplingYear, y = AnnualMedian)) +
+    geom_point(position = position_dodge(width = 0.3), size = 3) +
+    geom_errorbar(aes(ymin = AnnualMedian - Annuallower_ci, ymax = AnnualMedian + Annualupper_ci),
+                  position = position_dodge(width = 0.3), width = 0.2) +
+    labs(title = paste("Trend in Waterchem - Site:", i),
+         x = "Year",
+         y = paste(filtered_chem_data[1,"CharacteristicName"], "Annual Median with CI"))
+  
+  # Plot Fishdata
+  fish_plot <- ggplot(filtered_fish_data, aes(x = samplingYear, y = TotalCount, fill = SubjectTaxonomicName)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+    scale_fill_viridis_d() + 
+    labs(title = paste("Total Count per Fish Species - Site:", i),
+         x = "Year",
+         y = "Total Count") +
+    theme(legend.position = "top")
+  
+  # Combine  plots 
+  combined_plot <- cowplot::plot_grid(chem_plot, fish_plot, ncol = 1, align = "v", labels = "AUTO")
+  
+
+  plots_list[[i]] <- combined_plot
+}
+
+
+# Save the plots to files 
+file_path <- "C:/Users/marcp/Documents/FishAnlaysisNCRN/Figures/FishChembySite/Salinity"
+for (i in unique_sites) {
+  # Save each plot to a file
+  ggsave(file.path(file_path, paste("plot_site_", i, watChemParam, ".png", sep = "")),
+         plot = plots_list[[i]], device = "png")
+}
+
+
+
+
+```
+
